@@ -42,3 +42,53 @@ func addUserIndexes(db *mgo.Database) error {
 
 	return nil
 }
+
+// CreateUser creates a new user
+func (s *Service) CreateUser(user User) (User, error) {
+	session := s.db.Copy()
+	defer session.Close()
+
+	// TODO rpc server should take care of cleaning up phone number, adding created and updated times
+	c := session.DB("").C(userCollection)
+	user.ID = bson.NewObjectId()
+	err := c.Insert(&user)
+	if err == nil {
+		return user, nil
+	}
+
+	if mgo.IsDup(err) {
+		return user, fmt.Errorf("user already exists: %v", err)
+	}
+
+	return user, fmt.Errorf("unknown error during insert user: %v", err)
+}
+
+// GetUser returns the user by ID
+func (s *Service) GetUser(id string) (User, error) {
+	session := s.db.Copy()
+	defer session.Close()
+
+	c := session.DB("").C(userCollection)
+	var user User
+	err := c.FindId(id).One(&user)
+	if err != nil {
+		return user, fmt.Errorf("user not found: %v", err)
+	}
+
+	return user, nil
+}
+
+// GetUserByPhone returns user by phone
+func (s *Service) GetUserByPhone(phone string) (User, error) {
+	session := s.db.Copy()
+	defer session.Close()
+
+	c := session.DB("").C(userCollection)
+	var user User
+	err := c.Find(bson.M{"phone": phone}).One(&user)
+	if err != nil {
+		return user, fmt.Errorf("user not found: %v", err)
+	}
+
+	return user, nil
+}
