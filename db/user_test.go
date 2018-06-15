@@ -43,10 +43,10 @@ func (u *UserTestSuite) TestUser() {
 	u.UserCreateError()
 	u.UserGetByPhoneOK(user.Phone)
 	u.UserGetByPhoneError("+919556445567")
-	u.UserGetByID(user.ID.Hex())
-	u.UserGetByIDError(bson.NewObjectId().Hex())
-	u.UpdateUserOK(user.ID.Hex())
-	u.UpdateUserError(bson.NewObjectId().Hex())
+	u.UserGetByID(user.ID)
+	u.UserGetByIDError(bson.NewObjectId())
+	u.UpdateUserOK(user.ID)
+	u.UpdateUserError(bson.NewObjectId())
 }
 
 func checkUser(user User, r *require.Assertions) {
@@ -98,19 +98,19 @@ func (u *UserTestSuite) UserGetByPhoneError(phone string) {
 	require.Errorf(u.T(), err, "user not found")
 }
 
-func (u *UserTestSuite) UserGetByID(id string) {
+func (u *UserTestSuite) UserGetByID(id bson.ObjectId) {
 	user, err := u.service.GetUser(id)
 	r := require.New(u.T())
 	r.NoError(err)
 	checkUser(user, r)
 }
 
-func (u *UserTestSuite) UserGetByIDError(id string) {
+func (u *UserTestSuite) UserGetByIDError(id bson.ObjectId) {
 	_, err := u.service.GetUser(id)
 	require.Errorf(u.T(), err, "user not found")
 }
 
-func (u *UserTestSuite) UpdateUserOK(id string) {
+func (u *UserTestSuite) UpdateUserOK(id bson.ObjectId) {
 	updates := map[string]interface{}{
 		"first_name": "Ved",
 		"last_name":  "singareddi",
@@ -131,13 +131,13 @@ func (u *UserTestSuite) UpdateUserOK(id string) {
 	r.NotEmpty(user.UpdatedAt)
 }
 
-func (u *UserTestSuite) UpdateUserError(id string) {
+func (u *UserTestSuite) UpdateUserError(id bson.ObjectId) {
 	r := require.New(u.T())
 	err := u.service.UpdateUserByID(id, nil)
 	r.Errorf(err, "nothing to update")
 
 	err = u.service.UpdateUserByID(id, map[string]interface{}{
-		"_id": bson.ObjectIdHex(id),
+		"_id": id,
 	})
 	r.Errorf(err, "nothing to update")
 

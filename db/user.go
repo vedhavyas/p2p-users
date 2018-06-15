@@ -69,13 +69,13 @@ func (s *Service) CreateUser(user User) (User, error) {
 }
 
 // GetUser returns the user by ID
-func (s *Service) GetUser(id string) (User, error) {
+func (s *Service) GetUser(id bson.ObjectId) (User, error) {
 	session := s.db.Copy()
 	defer session.Close()
 
 	c := session.DB("").C(userCollection)
 	var user User
-	err := c.FindId(bson.ObjectIdHex(id)).One(&user)
+	err := c.FindId(id).One(&user)
 	if err != nil {
 		return user, fmt.Errorf("user not found: %v", err)
 	}
@@ -100,8 +100,7 @@ func (s *Service) GetUserByPhone(phone string) (User, error) {
 
 // UpdateUserByID updates the user except ID
 // TODO: rpc should tak care of normalising the phone
-// TODO: take care of recovery
-func (s *Service) UpdateUserByID(id string, updates map[string]interface{}) error {
+func (s *Service) UpdateUserByID(id bson.ObjectId, updates map[string]interface{}) error {
 	delete(updates, "_id")
 	if len(updates) == 0 {
 		return fmt.Errorf("nothing to update")
@@ -112,7 +111,7 @@ func (s *Service) UpdateUserByID(id string, updates map[string]interface{}) erro
 
 	c := session.DB("").C(userCollection)
 	updates["updated_at"] = time.Now()
-	err := c.UpdateId(bson.ObjectIdHex(id), bson.M{"$set": updates})
+	err := c.UpdateId(id, bson.M{"$set": updates})
 	if err == nil {
 		return nil
 	}
@@ -120,5 +119,5 @@ func (s *Service) UpdateUserByID(id string, updates map[string]interface{}) erro
 		return fmt.Errorf("user not found")
 	}
 
-	return fmt.Errorf("failed to update ID(%s): %v", id, err)
+	return fmt.Errorf("failed to update ID(%s): %v", id.Hex(), err)
 }
