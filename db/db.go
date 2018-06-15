@@ -22,11 +22,14 @@ func GetDBService(dbURL string) (*Service, error) {
 		return nil, fmt.Errorf("failed to ping DB: %v", err)
 	}
 
-	db := session.DB("")
-	err = addUserIndexes(db)
+	return &Service{db: session}, nil
+}
+
+func (s *Service) EnsureIndexes() error {
+	err := addUserIndexes(s.db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add user indexes: %v", err)
+		return fmt.Errorf("failed to add user indexes: %v", err)
 	}
 
-	return &Service{db: session}, nil
+	return nil
 }

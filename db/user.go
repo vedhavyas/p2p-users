@@ -29,8 +29,10 @@ type UserOperator interface {
 }
 
 // addUserIndexes adds indexes(if not) for user collection
-func addUserIndexes(db *mgo.Database) error {
-	c := db.C(userCollection)
+func addUserIndexes(db *mgo.Session) error {
+	session := db.Copy()
+	defer session.Close()
+	c := session.DB("").C(userCollection)
 	i := mgo.Index{
 		Key:    []string{"phone"},
 		Unique: true,
@@ -48,9 +50,11 @@ func (s *Service) CreateUser(user User) (User, error) {
 	session := s.db.Copy()
 	defer session.Close()
 
-	// TODO rpc server should take care of cleaning up phone number, adding created and updated times
+	// TODO rpc server should take care of cleaning up phone number
 	c := session.DB("").C(userCollection)
 	user.ID = bson.NewObjectId()
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
 	err := c.Insert(&user)
 	if err == nil {
 		return user, nil
@@ -70,7 +74,7 @@ func (s *Service) GetUser(id string) (User, error) {
 
 	c := session.DB("").C(userCollection)
 	var user User
-	err := c.FindId(id).One(&user)
+	err := c.FindId(bson.ObjectIdHex(id)).One(&user)
 	if err != nil {
 		return user, fmt.Errorf("user not found: %v", err)
 	}
