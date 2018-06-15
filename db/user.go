@@ -26,6 +26,7 @@ type UserOperator interface {
 	CreateUser(user User) (User, error)
 	GetUser(id string) (User, error)
 	GetUserByPhone(phone string) (User, error)
+	UpdateUserByID(id string, updates map[string]interface{})
 }
 
 // addUserIndexes adds indexes(if not) for user collection
@@ -46,11 +47,11 @@ func addUserIndexes(db *mgo.Session) error {
 }
 
 // CreateUser creates a new user
+// TODO caller should take care of cleaning up phone number
 func (s *Service) CreateUser(user User) (User, error) {
 	session := s.db.Copy()
 	defer session.Close()
 
-	// TODO rpc server should take care of cleaning up phone number
 	c := session.DB("").C(userCollection)
 	user.ID = bson.NewObjectId()
 	user.CreatedAt = time.Now()
@@ -95,4 +96,29 @@ func (s *Service) GetUserByPhone(phone string) (User, error) {
 	}
 
 	return user, nil
+}
+
+// UpdateUserByID updates the user except ID
+// TODO: rpc should tak care of normalising the phone
+// TODO: take care of recovery
+func (s *Service) UpdateUserByID(id string, updates map[string]interface{}) error {
+	delete(updates, "_id")
+	if len(updates) == 0 {
+		return fmt.Errorf("nothing to update")
+	}
+
+	session := s.db.Copy()
+	defer session.Close()
+
+	c := session.DB("").C(userCollection)
+	updates["updated_at"] = time.Now()
+	err := c.UpdateId(bson.ObjectIdHex(id), bson.M{"$set": updates})
+	if err == nil {
+		return nil
+	}
+	if err == mgo.ErrNotFound {
+		return fmt.Errorf("user not found")
+	}
+
+	return fmt.Errorf("failed to update ID(%s): %v", id, err)
 }

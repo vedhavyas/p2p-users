@@ -41,20 +41,15 @@ func TestUserSuite(t *testing.T) {
 func (u *UserTestSuite) TestUser() {
 	user := u.UserCreateOK()
 	u.UserCreateError()
-
-	u1 := u.UserGetByPhoneOK(user.Phone)
-	checkUser(u, u1)
-	err := u.UserGetByPhoneError("+919556445567")
-	require.Errorf(u.T(), err, "user not found")
-
-	u2 := u.UserGetByID(user.ID.Hex())
-	checkUser(u, u2)
-	err = u.UserGetByIDError(bson.NewObjectId().Hex())
-	require.Errorf(u.T(), err, "user not found")
+	u.UserGetByPhoneOK(user.Phone)
+	u.UserGetByPhoneError("+919556445567")
+	u.UserGetByID(user.ID.Hex())
+	u.UserGetByIDError(bson.NewObjectId().Hex())
+	u.UpdateUserOK(user.ID.Hex())
+	u.UpdateUserError(bson.NewObjectId().Hex())
 }
 
-func checkUser(u *UserTestSuite, user User) {
-	r := require.New(u.T())
+func checkUser(user User, r *require.Assertions) {
 	r.NotEmpty(user.ID)
 	r.Equal(user.Phone, "+919663556657")
 	r.Equal(user.FirstName, "Vedhavyas")
@@ -73,10 +68,11 @@ func (u *UserTestSuite) UserCreateOK() User {
 		Picture:   "http://some.image/vedhavyas",
 	}
 
+	r := require.New(u.T())
 	var err error
 	user, err = u.service.CreateUser(user)
 	require.NoError(u.T(), err)
-	checkUser(u, user)
+	checkUser(user, r)
 	return user
 }
 
@@ -90,24 +86,63 @@ func (u *UserTestSuite) UserCreateError() {
 	r.Errorf(err, "user already exists")
 }
 
-func (u *UserTestSuite) UserGetByPhoneOK(phone string) User {
+func (u *UserTestSuite) UserGetByPhoneOK(phone string) {
 	user, err := u.service.GetUserByPhone(phone)
-	require.NoError(u.T(), err)
-	return user
+	r := require.New(u.T())
+	r.NoError(err)
+	checkUser(user, r)
 }
 
-func (u *UserTestSuite) UserGetByPhoneError(phone string) error {
+func (u *UserTestSuite) UserGetByPhoneError(phone string) {
 	_, err := u.service.GetUserByPhone(phone)
-	return err
+	require.Errorf(u.T(), err, "user not found")
 }
 
-func (u *UserTestSuite) UserGetByID(id string) User {
+func (u *UserTestSuite) UserGetByID(id string) {
 	user, err := u.service.GetUser(id)
-	require.NoError(u.T(), err)
-	return user
+	r := require.New(u.T())
+	r.NoError(err)
+	checkUser(user, r)
 }
 
-func (u *UserTestSuite) UserGetByIDError(id string) error {
+func (u *UserTestSuite) UserGetByIDError(id string) {
 	_, err := u.service.GetUser(id)
-	return err
+	require.Errorf(u.T(), err, "user not found")
+}
+
+func (u *UserTestSuite) UpdateUserOK(id string) {
+	updates := map[string]interface{}{
+		"first_name": "Ved",
+		"last_name":  "singareddi",
+		"picture":    "",
+	}
+	err := u.service.UpdateUserByID(id, updates)
+	r := require.New(u.T())
+	r.NoError(err)
+
+	user, err := u.service.GetUser(id)
+	r.NoError(err)
+	r.NotEmpty(user.ID)
+	r.Equal(user.Phone, "+919663556657")
+	r.Equal(user.FirstName, "Ved")
+	r.Equal(user.LastName, "singareddi")
+	r.Equal(user.Picture, "")
+	r.NotEmpty(user.CreatedAt)
+	r.NotEmpty(user.UpdatedAt)
+}
+
+func (u *UserTestSuite) UpdateUserError(id string) {
+	r := require.New(u.T())
+	err := u.service.UpdateUserByID(id, nil)
+	r.Errorf(err, "nothing to update")
+
+	err = u.service.UpdateUserByID(id, map[string]interface{}{
+		"_id": bson.ObjectIdHex(id),
+	})
+	r.Errorf(err, "nothing to update")
+
+	err = u.service.UpdateUserByID(id, map[string]interface{}{
+		"first_name": "Vedhavyas",
+	})
+	r.Errorf(err, "user not found")
 }
